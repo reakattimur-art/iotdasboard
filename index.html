@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Monitoring Lingkungan IoT</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #94a3b8;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .status-badge.connected {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .icon-box {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .icon-box.temp { background: rgba(239, 68, 68, 0.2); }
+        .icon-box.humidity { background: rgba(59, 130, 246, 0.2); }
+        .icon-box.light { background: rgba(234, 179, 8, 0.2); }
+
+        .card-value {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .card-label {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .card-range {
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .value-normal { color: #4ade80; }
+        .value-warning { color: #facc15; }
+        .value-danger { color: #ef4444; }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+        }
+
+        .lamp-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .lamp-icon {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            font-size: 48px;
+        }
+
+        .lamp-icon.off {
+            background: #334155;
+        }
+
+        .lamp-icon.on {
+            background: #facc15;
+            box-shadow: 0 0 40px rgba(250, 204, 21, 0.5);
+        }
+
+        .lamp-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .lamp-btn.on {
+            background: #22c55e;
+            color: white;
+        }
+
+        .lamp-btn.on:hover {
+            background: #16a34a;
+        }
+
+        .lamp-btn.off {
+            background: #ef4444;
+            color: white;
+        }
+
+        .lamp-btn.off:hover {
+            background: #dc2626;
+        }
+
+        .lamp-status {
+            margin-top: 20px;
+            color: #94a3b8;
+        }
+
+        .lamp-status span {
+            font-weight: 600;
+        }
+
+        .alerts-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .alert-item {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid;
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            color: #fca5a5;
+        }
+
+        .alert-warning {
+            background: rgba(234, 179, 8, 0.1);
+            border-color: #eab308;
+            color: #fde047;
+        }
+
+        .alert-info {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: #3b82f6;
+            color: #93c5fd;
+        }
+
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+        }
+
+        .alert-time {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .security-info {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .security-indicator {
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .no-alerts {
+            text-align: center;
+            color: #64748b;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div>
+                    <h1>Monitoring Lingkungan Ruang Kerja</h1>
+                    <p>Real-time monitoring dengan MQTT over TLS</p>
+                </div>
+                <div class="status-badge connected">
+                    <div class="status-indicator"></div>
+                    <span>Connected (TLS)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Values -->
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="icon-box temp">🌡️</div>
+                    <div>
+                        <div class="card-label">Suhu</div>
+                        <div class="card-value value-normal" id="temp-value">0°C</div>
+                    </div>
+                </div>
+                <div class="card-range">Range: 18°C - 30°C</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="icon-box humidity">💧</div>
+                    <div>
+                        <div class="card-label">Kelembapan</div>
+                        <div class="card-value value-normal" id="humidity-value">0%</div>
+                    </div>
+                </div>
+                <div class="card-range">Range: 30% - 70%</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="icon-box light">☀️</div>
+                    <div>
+                        <div class="card-label">Cahaya</div>
+                        <div class="card-value value-normal" id="light-value">0</div>
+                    </div>
+                </div>
+                <div class="card-range">Minimum: 300 lux</div>
+            </div>
+        </div>
+
+        <!-- Charts and Control -->
+        <div class="main-grid">
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">Grafik Real-time</h2>
+                <div class="chart-container">
+                    <canvas id="sensorChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">Kontrol Lampu</h2>
+                <div class="lamp-control">
+                    <div class="lamp-icon off" id="lamp-icon">💡</div>
+                    <button class="lamp-btn on" id="lamp-btn" onclick="toggleLamp()">
+                        <span>⚡</span>
+                        <span id="lamp-btn-text">Nyalakan Lampu</span>
+                    </button>
+                    <div class="lamp-status">
+                        Status: <span id="lamp-status">OFF</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts -->
+        <div class="card">
+            <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                <span>⚠️</span>
+                Notifikasi & Alert
+            </h2>
+            <div class="alerts-container" id="alerts-container">
+                <div class="no-alerts">Tidak ada alert saat ini</div>
+            </div>
+        </div>
+
+        <!-- Security Info -->
+        <div class="security-info" style="margin-top: 30px;">
+            <div class="security-indicator"></div>
+            <span>Koneksi aman menggunakan MQTT over TLS (Port 8883) dengan autentikasi username/password</span>
+        </div>
+    </div>
+
+    <script>
+        // Thresholds
+        const TEMP_MAX = 30;
+        const TEMP_MIN = 18;
+        const HUMIDITY_MAX = 70;
+        const HUMIDITY_MIN = 30;
+        const LIGHT_MIN = 300;
+
+        // State
+        let lampOn = false;
+        let alerts = [];
+        let chartData = {
+            labels: [],
+            temperature: [],
+            humidity: []
+        };
+
+        // Chart setup
+        const ctx = document.getElementById('sensorChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'Suhu (°C)',
+                    data: chartData.temperature,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4,
+                    borderWidth: 2
+                }, {
+                    label: 'Kelembapan (%)',
+                    data: chartData.humidity,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#94a3b8'
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: '#334155' }
+                    },
+                    y: {
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: '#334155' }
+                    }
+                }
+            }
+        });
+
+        function toggleLamp() {
+            lampOn = !lampOn;
+            const icon = document.getElementById('lamp-icon');
+            const btn = document.getElementById('lamp-btn');
+            const btnText = document.getElementById('lamp-btn-text');
+            const status = document.getElementById('lamp-status');
+
+            if (lampOn) {
+                icon.classList.remove('off');
+                icon.classList.add('on');
+                btn.classList.remove('on');
+                btn.classList.add('off');
+                btnText.textContent = 'Matikan Lampu';
+                status.textContent = 'ON';
+                status.style.color = '#4ade80';
+            } else {
+                icon.classList.remove('on');
+                icon.classList.add('off');
+                btn.classList.remove('off');
+                btn.classList.add('on');
+                btnText.textContent = 'Nyalakan Lampu';
+                status.textContent = 'OFF';
+                status.style.color = '#64748b';
+            }
+
+            console.log(`MQTT Publish: workspace/control/lamp - ${lampOn ? 'ON' : 'OFF'}`);
+        }
+
+        function getStatusClass(value, min, max) {
+            if (value < min || value > max) return 'value-danger';
+            return 'value-normal';
+        }
+
+        function addAlert(type, message) {
+            const time = new Date().toLocaleTimeString();
+            alerts.unshift({ type, message, time });
+            if (alerts.length > 10) alerts.pop();
+            
+            renderAlerts();
+        }
+
+        function renderAlerts() {
+            const container = document.getElementById('alerts-container');
+            
+            if (alerts.length === 0) {
+                container.innerHTML = '<div class="no-alerts">Tidak ada alert saat ini</div>';
+                return;
+            }
+
+            container.innerHTML = alerts.map(alert => `
+                <div class="alert-item alert-${alert.type}">
+                    <div class="alert-header">
+                        <div>${alert.message}</div>
+                        <div class="alert-time">${alert.time}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateSensorData() {
+            // Simulate sensor data
+            const temp = 20 + Math.random() * 15;
+            const humidity = 40 + Math.random() * 30;
+            const light = Math.random() * 1000;
+            const time = new Date().toLocaleTimeString();
+
+            // Update values
+            const tempEl = document.getElementById('temp-value');
+            const humidityEl = document.getElementById('humidity-value');
+            const lightEl = document.getElementById('light-value');
+
+            tempEl.textContent = temp.toFixed(1) + '°C';
+            humidityEl.textContent = humidity.toFixed(1) + '%';
+            lightEl.textContent = light.toFixed(0);
+
+            // Update classes
+            tempEl.className = 'card-value ' + getStatusClass(temp, TEMP_MIN, TEMP_MAX);
+            humidityEl.className = 'card-value ' + getStatusClass(humidity, HUMIDITY_MIN, HUMIDITY_MAX);
+            lightEl.className = 'card-value ' + (light < LIGHT_MIN ? 'value-danger' : 'value-normal');
+
+            // Update chart
+            chartData.labels.push(time);
+            chartData.temperature.push(temp.toFixed(1));
+            chartData.humidity.push(humidity.toFixed(1));
+
+            if (chartData.labels.length > 20) {
+                chartData.labels.shift();
+                chartData.temperature.shift();
+                chartData.humidity.shift();
+            }
+
+            chart.update();
+
+            // Check thresholds
+            if (temp > TEMP_MAX) {
+                addAlert('danger', `Suhu terlalu tinggi: ${temp.toFixed(1)}°C`);
+            }
+            if (temp < TEMP_MIN) {
+                addAlert('warning', `Suhu terlalu rendah: ${temp.toFixed(1)}°C`);
+            }
+            if (humidity > HUMIDITY_MAX) {
+                addAlert('danger', `Kelembapan terlalu tinggi: ${humidity.toFixed(1)}%`);
+            }
+            if (humidity < HUMIDITY_MIN) {
+                addAlert('warning', `Kelembapan terlalu rendah: ${humidity.toFixed(1)}%`);
+            }
+            if (light < LIGHT_MIN) {
+                addAlert('info', `Cahaya kurang: ${light.toFixed(0)} lux`);
+            }
+        }
+
+        // Start simulation
+        console.log('Connecting to MQTT broker over TLS...');
+        setInterval(updateSensorData, 3000);
+        updateSensorData(); // Initial update
+    </script>
+</body>
+</html>
